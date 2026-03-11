@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = TRUE, collapse = TRUE)
 To follow along, you will need the R packages `terra` and `prioritizr` installed. We will also need a solver that `prioritizr` uses to solve the prioritization problems. For simplicity, we can install the open source solver `lpsymphony`. Finally we will our new package `oceandatr` to get the data for the prioritization. Use the following code to do all the install work.
 
 ```{r eval = FALSE}
-install.packages("prioritizr")
+install.packages(c("prioritizr", "terra", "slam"))
 if (!require(remotes)) install.packages("remotes") #you might already have this: for installing from Github and Bioconductor
 
 remotes::install_bioc("lpsymphony")
@@ -31,7 +31,7 @@ library(prioritizr)
 
 # Spatial prioritization primer
 
-How do we decide which areas to protect? Or which areas to should be for aquaculture, renewable energy development, or any other use? We need to think about our **spatial priorities**! 
+How do we decide which areas to protect? Or which areas should be for aquaculture, renewable energy development, or any other use? We need to think about our **spatial priorities**! 
 
 We normally have a set of spatial objectives we want to meet, e.g. protect 50% of all fish spawning grounds, protect 30% of all biodiversity, ensure that 50% of an area remains open to fishing. Lets look at the cartoon example below where the area of the ocean is divided into 9 grid squares (our planning grid), and there are 3 species present. Our objective is to protect 1 representative of each species; simple enough. But we also want to do this using the smallest possible area (minimum grid cells). And how about connectivity; we might want to protect grid cells next to each other. This is simple enough to work through for 9 grid cells and 3 species, but imagine thousands of grid cells and hundreds of species! This is where computer algorithms come in.
 
@@ -66,10 +66,10 @@ First we need to get the Bermuda EEZ and create a planning grid for it. We are g
 
 ```{r}
 #get the Bermuda EEZ from marineregions.org
-bermuda_eez <- get_area(area_name = "Bermuda", mregions_column = "territory1")
+bermuda_eez <- get_boundary("Bermuda")
 
 #now create a planning grid with 10 km x 10km grid cells, using an equal area crs
-planning_grid <- get_grid(area_polygon = bermuda_eez, projection_crs = "+proj=laea +lon_0=-64.8108333 +lat_0=32.3571917 +datum=WGS84 +units=m +no_defs", resolution = 10000)
+planning_grid <- get_grid(boundary = bermuda_eez, crs = "+proj=laea +lon_0=-64.8108333 +lat_0=32.3571917 +datum=WGS84 +units=m +no_defs", resolution = 10000)
 
 #lets have a look
 terra::plot(planning_grid)
@@ -81,21 +81,19 @@ terra::lines(bermuda_eez |> sf::st_transform(sf::st_crs(planning_grid))) #for pl
 Now we can get some features. Remember these are just spatial data for things that we want to protect. There are several sources of data available via `oceandatr` and there is a one stop function that can pull down a standard set of features, representing oceanic habitat types. These are what what emlab have been using for offshore prioritizations.
 
 ```{r warning=FALSE}
-features <- get_features(spatial_grid = planning_grid) 
-
-#remove all rasters that are only zero (i.e. data is not present)
-features <- terra::subset(features, !terra::global(features, "sum", na.rm=TRUE) == 0)
+features <- get_features(spatial_grid = planning_grid) |>
+  remove_empty_layers()#remove all rasters that are only zero (i.e. data is not present)
 
 terra::plot(features)
 ```
 
 ## Cost
 
-The cost layer is what we want to minimize impact to. We often use some measure of fishing. Here we will use distance from shore which is a simple proxy of fishing effort for coastal fisheries.
+The cost layer is what we want to minimize impact to. We often use some measure of fishing. Here we will use distance from shore which is a simple proxy of fishing effort for coastal fisheries. We get the inverse of the distance to shore because we want areas nearshore to be the most "costly" since that is where most fishing occurs in coastal fisheries. 
 
 ```{r}
 #function is from the offshoredatr package
-cost <- get_dist_shore(spatial_grid = planning_grid)
+cost <- get_dist(spatial_grid = planning_grid, dist_to = "shore", inverse = TRUE)
 
 terra::plot(cost)
 ```
