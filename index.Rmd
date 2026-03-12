@@ -11,15 +11,17 @@ knitr::opts_chunk$set(echo = TRUE, collapse = TRUE)
 
 ## Prerequisites
 
-To follow along, you will need the R packages `terra` and `prioritizr` installed. We will also need a solver that `prioritizr` uses to solve the prioritization problems. For simplicity, we can install the open source solver `lpsymphony`. Finally we will our new package `oceandatr` to get the data for the prioritization. Use the following code to do all the install work.
+To follow along, you will need several R packages including `terra` for loading and manipulating spatial data, and `prioritizr` for the prioritization process. We will also need a solver that `prioritizr` uses to solve the prioritization problems. For simplicity, we can install the open source solver `lpsymphony`. Finally we will use the `oceandatr` to get the data for the prioritization. Use the following code to do all the install work.
 
 ```{r eval = FALSE}
 install.packages(c("prioritizr", "terra", "slam"))
+
 if (!require(remotes)) install.packages("remotes") #you might already have this: for installing from Github and Bioconductor
 
 remotes::install_bioc("lpsymphony")
 options(timeout = 6000) #oceandatr is ~500MB, so need to increase the timeout
 remotes::install_github("emlab-ucsb/oceandatr", force = TRUE) #force=TRUE ensures we get the most recent version on Github
+remotes::install_github("bio-oracle/biooracler") #for biophysical data downloaded from Bio-Oracle by oceandatr
 ```
 
 New we can load the libraries we will need.
